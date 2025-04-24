@@ -70,7 +70,7 @@ class SQLiteAdapter:
                 return {"result": results}
         except Exception as e:
             logger.error(f"Query execution failed: {e}")
-            return {"result": f"Query execution failed: {str(e)}"}
+            raise
 
 class ModularDBAgent:
     def __init__(self, db, llm):
@@ -112,7 +112,6 @@ Ensure the prompt provides enough context and clarity for generating accurate SQ
 If the intent is unclear or not related to the database, return "No prompt generated."
             """
             response = self.llm.invoke(prompt)
-            state["messages"].append(AIMessage(content=response.content.strip()))
             state["intent"] = [response.content.strip()]
             logger.info("User intent extracted successfully.")
             return state
@@ -124,7 +123,7 @@ If the intent is unclear or not related to the database, return "No prompt gener
         try:
             schema_str = self.format_schema()
             user_query = state["intent"] if state["intent"] else ""
-
+            previous_error = state.get("error", None)
             if user_query == "No query found.":
                 state["result"] = ["No actionable query."]
                 logger.warning("No actionable query found.")
@@ -136,6 +135,8 @@ You are a SQL expert. Given the following database schema:
 {schema_str}
 The user has asked the following question or made the following request:
 
+{f"The previous query attempt failed with the following error:\n{previous_error}\nPlease correct it." if previous_error else ""}
+
 "{user_query}"
 Analyze the user's intent and, if necessary, break it down into multiple steps.
 Write one or more SQL queries (as a list) to fulfill the user's request, ensuring that the queries align with the schema and handle any dependencies between tables.
@@ -143,7 +144,7 @@ Write one or more SQL queries (as a list) to fulfill the user's request, ensurin
             structured_sql = self.llm.with_structured_output(SQLQuery)
             result = structured_sql.invoke(prompt)
             state["query"] = result.query
-            state["messages"].append(AIMessage(content="\n".join(result.query)))
+            state.pop("error", None)
             logger.info("SQL query generated successfully.")
             return state
         except Exception as e:
@@ -158,27 +159,26 @@ Write one or more SQL queries (as a list) to fulfill the user's request, ensurin
                 res = self.db.execute_query(query)
                 results.append(res)
             state["result"] = results
-            state["messages"].append(AIMessage(content=str(results)))
             logger.info("SQL query executed successfully.")
         except Exception as e:
             error_msg = f"{type(e).__name__}: {str(e)}"
             state["result"] = None
             state["error"] = error_msg  # Set the error explicitly
-            state["messages"].append(AIMessage(content=f"Query failed with error: {error_msg}"))
             logger.error(f"SQL query execution failed: {error_msg}")
         return state
 
     def validate_and_generate_result(self, state: DBState):
         try:
+            state.setdefault("retries", 0)
             if state["error"]:
                 if state["retries"] < 2:
                     state["retries"] += 1
                     error_msg = f"Retry {state['retries'] + 1}/3 due to error: {state['error']}"
-                    # state["messages"].append(AIMessage(content=error_msg))
                     logger.warning(error_msg)
                 else:
                     final_msg = f"Query failed after 3 attempts. Last error: {state['error']}"
                     state["messages"].append(AIMessage(content=final_msg))
+                    state["error"] = None
                     logger.error(final_msg)
             else:
                 result = state.get("result", [])
@@ -187,8 +187,7 @@ Write one or more SQL queries (as a list) to fulfill the user's request, ensurin
                     state["messages"].append(AIMessage(content=response_msg))
                     logger.info(response_msg)
                 else:
-                    # Use LLM to explain the result clearly
-                    user_query = state.get("intent", "")
+                    user_query = state["messages"][-1].content
                     prompt = f"""
 You are a helpful assistant. The user asked:"{user_query}"
 
