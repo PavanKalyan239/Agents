@@ -167,7 +167,7 @@ Write one or more SQL queries (as a list) to fulfill the user's request, ensurin
             logger.error(f"SQL query execution failed: {error_msg}")
         return state
 
-    def validate_and_generate_result(self, state: DBState):
+    async def validate_and_generate_result(self, state: DBState):
         try:
             state.setdefault("retries", 0)
             if state["error"]:
@@ -180,12 +180,14 @@ Write one or more SQL queries (as a list) to fulfill the user's request, ensurin
                     state["messages"].append(AIMessage(content=final_msg))
                     state["error"] = None
                     logger.error(final_msg)
+                    yield {"event": "on_custom_stream", "data": {"chunk": AIMessage(content=final_msg)}}
             else:
                 result = state.get("result", [])
                 if not result:
                     response_msg = "The query ran successfully but returned no data."
                     state["messages"].append(AIMessage(content=response_msg))
                     logger.info(response_msg)
+                    yield {"event": "on_custom_stream", "data": {"chunk": AIMessage(content=response_msg)}}
                 else:
                     user_query = state["messages"][-1].content
                     prompt = f"""
@@ -197,13 +199,13 @@ Generate a natural-language summary of the result : "{result} in the proper stru
                     state["messages"].append(AIMessage(content=response.content.strip()))
                     logger.info("Result validated and summarized successfully.")
 
-            return state
+            yield state
 
         except Exception as e:
             error_msg = f"Validation failed: {type(e).__name__}: {str(e)}"
             state["messages"].append(AIMessage(content=error_msg))
             logger.error(error_msg)
-            return state
+            yield state
 
     def route_validation(self, state: DBState) -> str:
         if state["error"]:

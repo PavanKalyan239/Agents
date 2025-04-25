@@ -3,7 +3,7 @@
 import streamlit as st
 import asyncio
 from DB_Agent import graph  # Your compiled ModularDBAgent.graph
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 st.set_page_config(page_title="Database Assistant")
 
@@ -83,15 +83,24 @@ async def run_db_agent_stream(user_message: str):
 
     bot_response = ""
     response_placeholder = st.empty()
+    bot_response = ""
+    async for event in graph.astream_events(initial_state, config=config, version="v2", stream_mode="updates"):
+        if event["event"] == "on_chain_stream" and event["metadata"].get("langgraph_node") == "validate_and_generate_result":
+            chunk_data = event["data"].get("chunk", {})
+            if chunk_data.get("event") == "on_custom_stream":
+                token = chunk_data["data"]["chunk"].content
+                bot_response += token
+                print('-------------------on_chain_stream-----------------------',token)
+                response_placeholder.markdown(
+                f'<div class="bot-message-container"><div class="bot-message">{bot_response}</div></div>',
+                unsafe_allow_html=True,
+            )
 
-    async for event in graph.astream_events(initial_state, config, stream_mode="values"):
-        if (
-            event["event"] == "on_chat_model_stream"
-            and event["metadata"].get("langgraph_node") == "validate_and_generate_result"
-        ):
-            chunk = event["data"]["chunk"]
-            token = chunk.content if hasattr(chunk, "content") else str(chunk)
+        elif event["event"] == "on_chat_model_stream" and event["metadata"].get("langgraph_node") == "validate_and_generate_result":
+            data = event["data"]
+            token = data["chunk"].content if hasattr(data["chunk"], "content") else str(data["chunk"])
             bot_response += token
+            print('-----------------------on_chat_model_stream-------------------------',token)
             response_placeholder.markdown(
                 f'<div class="bot-message-container"><div class="bot-message">{bot_response}</div></div>',
                 unsafe_allow_html=True,
