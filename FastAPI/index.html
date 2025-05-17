@@ -1,0 +1,15 @@
+<!-- python -m http.server 3000 -->
+<!DOCTYPE html>
+<html>
+<body>
+    <button onclick="callAPI()">Call API</button>
+    <script>
+        function callAPI() {
+            fetch("http://127.0.0.1:8080/")
+                .then(response => response.json())
+                .then(data => alert(JSON.stringify(data)))
+                .catch(err => console.error("CORS Error:", err));
+        }
+    </script>
+</body>
+</html>

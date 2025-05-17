@@ -1,0 +1,28 @@
+[
+  {
+    "name": "John Doe",
+    "age": 30,
+    "email": "johndoe@gmail.com",
+    "password": "fakehashedpassword123"
+  },
+  {
+    "name": "Bob",
+    "email": "bob@example.com",
+    "password": "hashed_pass"
+  },
+  {
+    "name": "Bob",
+    "email": "bob@example.com",
+    "password": "hashed_pass"
+  },
+  {
+    "name": "Bob",
+    "email": "bob@example.com",
+    "password": "hashed_pass"
+  },
+  {
+    "name": "Bob",
+    "email": "bob@example.com",
+    "password": "hashed_pass"
+  }
+]
