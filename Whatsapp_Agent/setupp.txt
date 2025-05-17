@@ -1,0 +1,12 @@
+Create a Node.js Project with Baielys
+mkdir whatsapp-agent && cd whatsapp-agent
+
+npm init -y
+npm install @whiskeysockets/baileys@latest
+npm install @whiskeysockets/baileys axios
+npm install qrcode-terminal
+npm install -g nodemon
+
+Wrrite the script in index.js
+run : node index.js
+
