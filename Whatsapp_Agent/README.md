@@ -27,8 +27,7 @@ A simple WhatsApp chat bot built with [Baileys](https://github.com/adiwajshing/B
    ```
 3. Ensure your FastAPI assistant is running:
    ```bash
-   cd ../FastAPI
-   uvicorn main:app --reload
+   uvicorn assistant:app --reload
    ```
 
 ### Setup & Dependencies
@@ -73,7 +72,6 @@ nodemon index.js
 - **FASTAPI_URL**: By default points to `http://localhost:8000/assistant`. Update in `index.js` if your API is hosted elsewhere.
 - **Multi-account sessions**: To manage multiple WhatsApp numbers, set the `WA_AUTH_FOLDER` environment variable before starting:
   ```powershell
-  $env:WA_AUTH_FOLDER = "new_account_auth"
   node index.js
   ```
   This creates a separate `auth_info_baileys` folder per session.
